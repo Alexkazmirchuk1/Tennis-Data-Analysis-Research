@@ -1,10 +1,4 @@
 import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import math
-import itertools # for shortening double-loop code.
-#%matplotlib inline
-plt.style.use('ggplot')
 
 #################################
 
@@ -394,7 +388,6 @@ class MarkovChain:
         result_array = self.determine_results(data, final_point)
 
         return result_array
-        # return data, final_point
         
     #
     
@@ -429,22 +422,10 @@ class MarkovChain:
         # possible to optimize?
         #
         equal_elements = []
-        #for i in range(len(predicted_winner)):
-        #    if math.floor(predicted_winner[i][0]) == winner_number[i][0]:
-        #        equal_elements.append( i+2 )
-        
+
         # n-by-1 boolean array (True means predicted correctly)
         equal_elements = np.floor(predicted_winner) == winner_number
         
-        #equal_elements = [i + 2 for i in range(len(predicted_winner)) if math.floor(predicted_winner[i]) == winner_number[i]]
-        #import pdb
-        #pdb.set_trace()
-
-        
-        #match_total_sets = len(predicted_winner)+1
-        #match_length = [i for i in range(2, match_total_sets+1)]
-        #result_array = np.vstack([1 if elem in equal_elements else 0 for elem in match_length])
-
         result_array = equal_elements.astype(int)
         
         # result_array : should have a 1 for every set which is predicted correctly; otherwise 0.
@@ -460,118 +441,84 @@ class MarkovChain:
         
 #########################################
 
-if False:
-    # 2023 Matches
-    FILE = '2023-wimbledon-data.csv'
-    MATCHES_TO_EXAMINE = ['2023-wimbledon-1301', '2023-wimbledon-1302', '2023-wimbledon-1303', '2023-wimbledon-1304', '2023-wimbledon-1305','2023-wimbledon-1306','2023-wimbledon-1307','2023-wimbledon-1308','2023-wimbledon-1309',
-                        '2023-wimbledon-1310','2023-wimbledon-1311','2023-wimbledon-1312','2023-wimbledon-1313','2023-wimbledon-1314','2023-wimbledon-1315','2023-wimbledon-1316','2023-wimbledon-1401','2023-wimbledon-1402',
-                        '2023-wimbledon-1403','2023-wimbledon-1404','2023-wimbledon-1405','2023-wimbledon-1406','2023-wimbledon-1407','2023-wimbledon-1408','2023-wimbledon-1501','2023-wimbledon-1502','2023-wimbledon-1503',
-                        '2023-wimbledon-1504','2023-wimbledon-1601','2023-wimbledon-1602','2023-wimbledon-1701']
-if True:
-    # 2021 Matches
-    FILE = '2021-wimbledon-data.csv'
-    MATCHES_TO_EXAMINE = [
-                        '2021-wimbledon-1147','2021-wimbledon-1101', '2021-wimbledon-1102', '2021-wimbledon-1103', '2021-wimbledon-1104', '2021-wimbledon-1105',
-                        '2021-wimbledon-1106', '2021-wimbledon-1107', '2021-wimbledon-1108', '2021-wimbledon-1109', '2021-wimbledon-1110',
-                        '2021-wimbledon-1111', '2021-wimbledon-1112', '2021-wimbledon-1113', '2021-wimbledon-1114', '2021-wimbledon-1115',
-                        '2021-wimbledon-1116', '2021-wimbledon-1117', '2021-wimbledon-1118', '2021-wimbledon-1119', '2021-wimbledon-1120',
-                        '2021-wimbledon-1121', '2021-wimbledon-1122', '2021-wimbledon-1123', '2021-wimbledon-1124', '2021-wimbledon-1125',
-                        '2021-wimbledon-1126', '2021-wimbledon-1127', '2021-wimbledon-1128', '2021-wimbledon-1129', '2021-wimbledon-1130',
-                        '2021-wimbledon-1131', '2021-wimbledon-1132', '2021-wimbledon-1133', '2021-wimbledon-1134', '2021-wimbledon-1135',
-                        '2021-wimbledon-1136', '2021-wimbledon-1137', '2021-wimbledon-1138', '2021-wimbledon-1139', '2021-wimbledon-1140',
-                        '2021-wimbledon-1141', '2021-wimbledon-1142', '2021-wimbledon-1143', '2021-wimbledon-1144', '2021-wimbledon-1145',
-                        '2021-wimbledon-1146',  '2021-wimbledon-1148', '2021-wimbledon-1150', '2021-wimbledon-1151', 
-                        '2021-wimbledon-1152', '2021-wimbledon-1153', '2021-wimbledon-1154', '2021-wimbledon-1155', '2021-wimbledon-1156', 
-                        '2021-wimbledon-1157', '2021-wimbledon-1158', '2021-wimbledon-1159', '2021-wimbledon-1160', '2021-wimbledon-1161', 
-                        '2021-wimbledon-1162', '2021-wimbledon-1163', '2021-wimbledon-1164', '2021-wimbledon-1201', '2021-wimbledon-1202', 
-                        '2021-wimbledon-1203', '2021-wimbledon-1204', '2021-wimbledon-1205', '2021-wimbledon-1206', '2021-wimbledon-1207', 
-                        '2021-wimbledon-1208', '2021-wimbledon-1209', '2021-wimbledon-1210', '2021-wimbledon-1211', '2021-wimbledon-1212', 
-                        '2021-wimbledon-1214', '2021-wimbledon-1215', '2021-wimbledon-1216', '2021-wimbledon-1217', '2021-wimbledon-1218', 
-                        '2021-wimbledon-1219', '2021-wimbledon-1220', '2021-wimbledon-1221', '2021-wimbledon-1222', '2021-wimbledon-1223', 
-                        '2021-wimbledon-1224', '2021-wimbledon-1225', '2021-wimbledon-1226', '2021-wimbledon-1227', '2021-wimbledon-1228', 
-                        '2021-wimbledon-1229', '2021-wimbledon-1230', '2021-wimbledon-1231', '2021-wimbledon-1232', '2021-wimbledon-1301', 
-                        '2021-wimbledon-1302', '2021-wimbledon-1303', '2021-wimbledon-1304', '2021-wimbledon-1305', '2021-wimbledon-1306', 
-                        '2021-wimbledon-1307', '2021-wimbledon-1308', '2021-wimbledon-1309', '2021-wimbledon-1310', '2021-wimbledon-1311', 
-                        '2021-wimbledon-1312', '2021-wimbledon-1313', '2021-wimbledon-1314', '2021-wimbledon-1315', '2021-wimbledon-1316', 
-                        '2021-wimbledon-1401', '2021-wimbledon-1402', '2021-wimbledon-1403', '2021-wimbledon-1404', '2021-wimbledon-1405', 
-                        '2021-wimbledon-1406', '2021-wimbledon-1407', '2021-wimbledon-1408', '2021-wimbledon-1501', '2021-wimbledon-1502', 
-                        '2021-wimbledon-1503', '2021-wimbledon-1504', '2021-wimbledon-1601', '2021-wimbledon-1602', '2021-wimbledon-1701']
-if False:
-    FILE = '2021-wimbledon-data.csv'
-    # 2021 matches of 5 sets
-    MATCHES_TO_EXAMINE = [
-                        '2021-wimbledon-1104', '2021-wimbledon-1105', '2021-wimbledon-1107', '2021-wimbledon-1108', 
-                        '2021-wimbledon-1122', '2021-wimbledon-1123', '2021-wimbledon-1125', '2021-wimbledon-1126', 
-                        '2021-wimbledon-1127', '2021-wimbledon-1136', '2021-wimbledon-1140', '2021-wimbledon-1142', 
-                        '2021-wimbledon-1144', '2021-wimbledon-1158', '2021-wimbledon-1163', '2021-wimbledon-1214',
-                        '2021-wimbledon-1215', '2021-wimbledon-1216', '2021-wimbledon-1223', '2021-wimbledon-1316', 
-                        '2021-wimbledon-1402', '2021-wimbledon-1403', '2021-wimbledon-1406', '2021-wimbledon-1408', 
-                        '2021-wimbledon-1502']
+if __name__=="__main__":
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import itertools # for shortening double-loop code.
 
-raw_data = pd.read_csv(FILE)
+    plt.style.use('ggplot')
 
-num = 5
+    import tennis_data
+    
+    raw_data = tennis_data.load_2021()
+    MATCHES_TO_EXAMINE = raw_data['match_id'].unique()
+    # MATCHES_TO_EXAMINE = tennis_data.five_sets_2021
+    
+    # For 2023: 
+    # raw_data = tennis_data.load_2023()
 
-rvalues = np.linspace(1, 1.8, num)
-svalues = np.linspace(0, 0.006, num)
-qvalues = np.linspace(0.01, 1, num)
-uuvalues = np.linspace(1, 1.005, num)
-ccvalues = np.linspace(0., 0.001, num)
+    num = 5
 
-results = np.zeros( (num, num) )
+    rvalues = np.linspace(1, 1.8, num)
+    svalues = np.linspace(0, 0.006, num)
+    qvalues = np.linspace(0.01, 1, num)
+    uuvalues = np.linspace(1, 1.005, num)
+    ccvalues = np.linspace(0., 0.001, num)
 
-# CODE TO BE AUTOMATED/TESTED OVER PARAM VALUES.
-#if True: 
-for i,j in itertools.product( range(num), range(num) ):
-    set1_correct = set1_total = set2_correct = set2_total = set3_correct = set3_total = set4_correct = set4_total = 0
-    
-    # 
-    
-    print(i,j)
-    
-    for MATCH_TO_EXAMINE in MATCHES_TO_EXAMINE:
-        # TODO: redesign code so that files get loaded *once*, outside the loop.
-        model = MarkovChain(raw_data, MATCH_TO_EXAMINE,  uuv=uuvalues[j]  , ccv=ccvalues[i])
-        model.train()
-        #if i == 0 and j == 0:
-        #     model.graph_momentum()
-        result_array = model.prediction()
-    
-        try:
-            set1_correct += result_array[0,0]
-            set1_total += 1
-    
-            set2_correct += result_array[1,0]
-            set2_total += 1
-    
-            set3_correct += result_array[2,0]
-            set3_total += 1
-    
-            set4_correct += result_array[3,0]
-            set4_total += 1
-        finally:
-            continue
-    results[i,j] = set4_correct/set4_total # store prediction rate.
-    
-if False:
-    print(rvalues[i], svalues[j])
-    print(f"Predicted winner at set 2 correctly {set1_correct} / {set1_total} times")
-    print(f"Predicted winner at set 3 correctly {set2_correct} / {set2_total} times")
-    print(f"Predicted winner at set 4 correctly {set3_correct} / {set3_total} times")
-    print(f"Predicted winner at set 5 correctly {set4_correct} / {set4_total} times")
-    
-    results[i,j] = set4_correct/set4_total # store prediction rate
-    
-##########################################
+    results = np.zeros( (num, num) )
 
-# visualize results of parameter sweep.
-fig,ax = plt.subplots()
-cax = ax.pcolor(ccvalues, uuvalues, results.T)
-ax.set(xlabel='cc', ylabel='uu')
-fig.colorbar(cax)
+    # CODE TO BE AUTOMATED/TESTED OVER PARAM VALUES.
+    #if True: 
+    for i,j in itertools.product( range(num), range(num) ):
+        set1_correct = set1_total = set2_correct = set2_total = set3_correct = set3_total = set4_correct = set4_total = 0
+        
+        # 
+        
+        print(i,j)
+        
+        for MATCH_TO_EXAMINE in MATCHES_TO_EXAMINE:
+            # TODO: redesign code so that files get loaded *once*, outside the loop.
+            model = MarkovChain(raw_data, MATCH_TO_EXAMINE,  uuv=uuvalues[j]  , ccv=ccvalues[i])
+            model.train()
+            #if i == 0 and j == 0:
+            #     model.graph_momentum()
+            result_array = model.prediction()
+        
+            try:
+                set1_correct += result_array[0,0]
+                set1_total += 1
+        
+                set2_correct += result_array[1,0]
+                set2_total += 1
+        
+                set3_correct += result_array[2,0]
+                set3_total += 1
+        
+                set4_correct += result_array[3,0]
+                set4_total += 1
+            finally:
+                continue
+        results[i,j] = set4_correct/set4_total # store prediction rate.
+        
+    if False:
+        print(rvalues[i], svalues[j])
+        print(f"Predicted winner at set 2 correctly {set1_correct} / {set1_total} times")
+        print(f"Predicted winner at set 3 correctly {set2_correct} / {set2_total} times")
+        print(f"Predicted winner at set 4 correctly {set3_correct} / {set3_total} times")
+        print(f"Predicted winner at set 5 correctly {set4_correct} / {set4_total} times")
+        
+        results[i,j] = set4_correct/set4_total # store prediction rate
+        
+    ##########################################
 
-##
+    # visualize results of parameter sweep.
+    fig,ax = plt.subplots()
+    cax = ax.pcolor(ccvalues, uuvalues, results.T)
+    ax.set(xlabel='cc', ylabel='uu')
+    fig.colorbar(cax)
 
-print(results.T)
+    ##
+
+    print(results.T)
 
 
