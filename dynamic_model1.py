@@ -8,40 +8,50 @@ import numpy as np
 
 # Find the probability of winning a game given probability winning a point
 def prob_hold(p):
-    """Probability server holds."""
+    """
+    Probability the serving player holds.
+    
+    Input: p, float, success probability; in interval [0,1].
+    Output: probability, float, in interval [0,1].
+    """
     q = 1-p
-    return (
-        p**4 +
-        4*(p**4)*q + 
-        10*(p**4)*(q**2) + 
-        (20*(p**3)*(q**3)) * ((p**2)/(1 - 2*p*q))
-    )
+    output = p**4 + 4*(p**4)*q + (20*(p**3)*(q**3)) * ((p**2)/(1 - 2*p*q))
+    return output
 
 # Find the probability of winning a set given probability winning a game
-def prob_win_set(ps):
-    """Probability server holds."""
-    qs = 1-ps
-    return (
-        ps**6 +
-        6*(ps**6)*qs + 
-        21*(ps**6)*(qs**2) + 
-        56*(ps**6)*(qs**3) +
-        126*(ps**6)*(qs**4) +
-        42*(ps**7)*(qs**5) +
-        924*(ps**7)*(qs**6)
-    )
+def prob_win_set(p):
+    """
+    Probability serving player holds.
+    
+    Input: p, float, success probability; in interval [0,1].
+    Output: probability, float, in interval [0,1].
+    """
+    q = 1-p
+    output = p**6 + 6*(p**6)*q + 21*(p**6)*(q**2) + 56*(p**6)*(q**3) + 126*(p**6)*(q**4) + 42*(p**7)*(q**5) + 924*(p**7)*(q**6)
+    return output
 
 # Find the probability of winning a match given probability winning a set
 def prob_win_match(pm):
-    """Probability server holds."""
+    """
+    Probability serving player wins match.
+    
+    Input: p, float, success probability; in interval [0,1].
+    Output: probability, float, in interval [0,1].
+    """
     qm = 1-pm
-    return (
-        pm**3 +
-        3*(pm**3)*qm + 
-        6*(pm**3)*(qm**2)
-    )
+    output = pm**3 + 3*(pm**3)*qm + 6*(pm**3)*(qm**2)
+    return output
 
 def get_serve_probability(match_data, player):
+    """
+    Inputs:
+        match_data : pandas DataFrame
+        player : integer index of player (0, 1, 2 for 2021 for example). 
+            Seems to be an index relative to the match being played.
+    
+    Outputs:
+        p_array : 
+    """
     serve_no = match_data['server'].values
     point_victor = match_data['point_victor'].values
 
@@ -64,7 +74,19 @@ def get_serve_probability(match_data, player):
 
     return p_array
 
+
 def prob_win_independent_game(p1, p2):
+    """
+    .....
+    
+    Inputs:
+        p1 : 
+        p2 : 
+        
+    Outputs:
+        ps1 : 
+        ps2 : 
+    """
     p1_holds_game = prob_hold(p1)
     p1_concedes_game = (1 - p1_holds_game)
 
@@ -81,7 +103,15 @@ def prob_win_independent_game(p1, p2):
 # change probability if player wins set
 def modify_momentum(match_data, probability_array, player, r=1.3, q=0.4):
     '''
-    When a player wins a set their "points" will increase by an exponential amount. When they lose a set their "points" will decrease but this change isn't as significant.
+    When a player wins a set their "points" will increase by an exponential amount. 
+    When they lose a set their "points" will decrease but this change isn't as significant.
+    
+    Inputs:
+        match_data : pandas DataFrame for the match
+        probability_array : array of .....
+        
+    Outputs:
+        probability_array : ...........
     '''
     # n = number of sets won
     n = 0
@@ -108,8 +138,16 @@ def modify_momentum(match_data, probability_array, player, r=1.3, q=0.4):
 
 def modify_momentum_err(match_data, momentum_array, player, s=0.0035):
     '''
-    Calculates the total number of unforced errors for a player and their opponent. For each additional unforced error a player commits, they will lose 0.0035 "points.
+    Calculates the total number of unforced errors for a player and their opponent. 
+    For each additional unforced error a player commits, they will lose 0.0035 "points" (default).
     For each additional unfrced error their opponent commits, they will gain 0.0035 "points".
+    
+    Inputs:
+        match_data : pandas DataFrame
+        momentum_array : array; ......
+        player : 
+    Outputs:
+        momentum_array : ............
     '''
 
     # unforced error total
@@ -138,7 +176,15 @@ def modify_momentum_err(match_data, momentum_array, player, s=0.0035):
 
 def points_scored(match_data, points_array, player, uu= 1.005, cc=0.0001):
     '''
-    When a player wins a set their "points" will increase by an exponential amount. When they lose a set their "points" will decrease but this change isn't as significant.
+    When a player wins a set their "points" will increase by an exponential amount. 
+    When they lose a set their "points" will decrease but this change isn't as significant.
+    
+    Inputs:
+        match_data : pandas DataFrame for the match.
+        points_array : array, .....
+        player : integer index of player
+        uu : parameter (float); default 1.005
+        cc : parameter (float); default 0.0001 (or, 10**-4)
     '''
     # w = number of points won
     ww = 0
@@ -163,11 +209,11 @@ def points_scored(match_data, points_array, player, uu= 1.005, cc=0.0001):
             
         points_array[index] = (((uu**ww)-1)/(uu**ww) + (1/(uu**ww)))*points_array[index]-mm*cc
         
-
     return points_array
     
 ###########################
-
+# The main class for these simulations/scores consists of the following general steps: 
+# 
 # 1 - Calculate serve probability (points_on_serves / total serves)
 # 2 - Calculate probability of winning a game from serve probability for each player
 # 3 - Calculate probability of winning a set from the player win game probability
@@ -192,6 +238,17 @@ class MarkovChain:
 
     # 1 - Get serve probabilities
     def get_serve_probabilities(self, debug=False):
+        '''
+        Output probabilities of each player winning a serve, given the current 
+        internal state of the system.
+        
+        Inputs: 
+            debug : boolean; whether to print diagnostic text; default False
+        
+        Outputs:
+            p1_probability,
+            p2_probability : floats; probabilities of this event.
+        '''
         p1_probability = get_serve_probability(self.match, 1)
         p2_probability = get_serve_probability(self.match, 2)
     
@@ -208,6 +265,17 @@ class MarkovChain:
 
     #  2 - Get probability of winning the game
     def get_game_probabilities(self, p1_probability, p2_probability, debug=False):
+        '''
+        ..............
+        
+        Inputs:
+            p1_probability : 
+            p2_probability : 
+            debug : boolean; whether to print diagnostic text; default False
+            
+        Outputs:
+            pg1_array, pg2_array : arrays; 
+        '''
         pg1_array = []
         pg2_array = []
 
@@ -226,6 +294,17 @@ class MarkovChain:
     
     # 3 - Get probability of winning the set.
     def get_set_probabilities(self, pg1_array, pg2_array, debug=False):
+        '''
+        ............
+        
+        Inputs:
+            pg1_array : 
+            pg2_array : 
+            debug : boolean; whether to print diagnostic text; default False
+            
+        Outputs:
+            ps1_array, ps2_array : arrays; ......
+        '''
         ps1_array = []
         ps2_array = []
 
@@ -242,6 +321,17 @@ class MarkovChain:
     
     # 4 - Get probability of winning the match
     def get_match_probabilities(self, ps1_array, ps2_array, debug=False):
+        '''
+        ............
+        
+        Inputs:
+            ps1_array : 
+            ps2_array : 
+            debug : boolean; whether to print diagnostic text; default False
+            
+        Outputs:
+            pm1_array, pm2_array : arrays; ......
+        '''
         #pm1_array = []
         #pm2_array = []
 
@@ -263,7 +353,16 @@ class MarkovChain:
         return pm1_array, pm2_array
     
     def update_momentum(self, pm1_array, pm2_array, debug=False):
+        '''
+        ........
         
+        Inputs:
+            pm1_array, pm2_array : 
+            debug : boolean; whether to print diagnostic text; default False
+            
+        Outputs:
+            p1_momentum11, p2_momentum22 : .......
+        '''
         
         p1_momentum = modify_momentum(self.match,  pm1_array, 1, r=self.rv, q=self.qv)
         p2_momentum = modify_momentum(self.match, pm2_array, 2, r=self.rv, q=self.qv)
@@ -282,6 +381,14 @@ class MarkovChain:
     
     # 5 - Graph
     def graph_momentum(self):
+        '''
+        Creates a plot of the dynamically evolving momentum values for the match 
+        studied. It is assumed self.p1_momentum and self.p2_momentum have been 
+        created and plotted.
+        
+        Inputs: None
+        Outputs: fig,ax : pyplot figure/axis pair associated with the plot created.
+        '''
         # graph the performance of match flow + momentum
         set_change_points = []
 
@@ -305,8 +412,23 @@ class MarkovChain:
             plt.text(value + 20, -.04, f"Set {index + 2}", verticalalignment='bottom')
 
         plt.show()
+        
+        # TODO : rewrite plotting commands here in the object-oriented framework
+        fig = plt.gcf()
+        ax = plt.gca()
+        
+        return fig,ax
 
     def prediction(self, verbose=False):
+        '''
+        Inputs: verbose : boolean; whether to print diagnostic text; default False
+        
+        Outputs: 
+            result_array : array; entry i indicates 
+            whether the current state of the momentum model at the end of set i 
+            correctly predicts the final result of the match; as an integer 
+            (0 = incorrectly predicted, 1 = correctly predicted).
+        '''
         # Find who was performing better before sets 3 4 and 5
         set_change_points = []
 
@@ -392,6 +514,14 @@ class MarkovChain:
     #
     
     def train(self, debug=False):
+        '''
+        Runs the model for the match this object was instantiated with.
+        Updates self.p1_momentum and self.p2_momentum.
+        
+        Inputs : debug; boolean, whether to print diagnostic text; default False.
+            This flag is automatically passed forward to intermediate functions.
+        Outputs: None
+        '''
         # possible optimizable?
         #self.p1_momentum, self.p2_momentum = self.update_momentum(
         #    *self.get_match_probabilities( # 4
@@ -411,6 +541,19 @@ class MarkovChain:
         return
     
     def determine_results(self, data, win, verbose=False):
+        '''
+        ..........
+        
+        Inputs:
+            data : ...
+            win : ...
+            verbose : boolean, whether to print diagnostic text; default False
+            
+        Outputs:
+            result_array : integer 0/1 array; whether at the end of set i+1 
+            whether the current momentum values correctly predict the end 
+            result of the match.
+        '''
         predicted_winner = 1+(np.diff(data, axis=1) )
 
         actual_winner = win*np.ones( np.shape(predicted_winner) )
