@@ -479,8 +479,9 @@ class MarkovChain:
         from matplotlib import pyplot as plt
         
         # find where we go from one set number to the next. These are sequential;
-        # e.g. self.match['set_no'] could look like [1, 1, 1, 1, 2, 2, 3, 3].
-        set_change_points = np.where( np.diff(self.match['set_no']) > 0 )[0]
+        # e.g. self.match['set_no'] could look like [1, 1, 1, 1, 2, 2, 3, 3], 
+        # and we would want set_change_points to be [4, 6].
+        set_change_points = 1 + np.where( np.diff(self.match['set_no']) > 0 )[0]
 
         fig,ax = plt.subplots()
         
@@ -509,77 +510,21 @@ class MarkovChain:
             (0 = incorrectly predicted, 1 = correctly predicted).
         '''
         # Find who was performing better before sets 3 4 and 5
-        set_change_points = []
-
-
-        old_entry = 1
-        for index, entry in enumerate(self.match['set_no']):
-            if entry != old_entry:
-                set_change_points.append(index + 1)
-                old_entry = entry
-        for index, value in enumerate(set_change_points):
-            if index == 1:
-                if self.p1_momentum[value] > self.p2_momentum[value]:
-                    set_3_pred = self.player1_name
-                    if verbose:
-                        print(self.player1_name, "is winning going into set 3 with: ", self.p1_momentum[value], "momentum")
-                else:
-                    set_3_pred = self.player2_name
-                    if verbose:
-                        print(self.player2_name, "is winning going into set 3 with: ", self.p2_momentum[value], "momentum")
-
-            elif index == 2:
-                if self.p1_momentum[value] > self.p2_momentum[value]:
-                    set_4_pred = self.player1_name
-                    if verbose:
-                        print(self.player1_name, "is winning going into set 4 with: ", self.p1_momentum[value], "momentum")
-                else:
-                    set_4_pred = self.player2_name
-                    if verbose:
-                        print(self.player2_name, "is winning going into set 4 with: ", self.p2_momentum[value], "momentum")
-
-            elif index == 3:
-                if self.p1_momentum[value] > self.p2_momentum[value]:
-                    set_5_pred = self.player1_name
-                    if verbose:
-                        print(self.player1_name, "is winning going into set 5 with: ", self.p1_momentum[value], "momentum")
-                elif self.p1_momentum[value] < self.p2_momentum[value]:
-                    set_5_pred = self.player2_name
-                    if verbose:
-                        print(self.player2_name, "is winning going into set 5 with: ", self.p2_momentum[value], "momentum")
-                else: 
-                    set_5_pred = 0
-
+        #set_change_points = []
+        #
+        #
+        #old_entry = 1
+        #for index, entry in enumerate(self.match['set_no']):
+        #    if entry != old_entry:
+        #        set_change_points.append(index + 1)
+        #        old_entry = entry
+        #        
+        set_change_points = 1 + np.where( np.diff(self.match['set_no']) > 0 )[0]
+        
         set_victors = self.match['set_victor']
         final_point = set_victors.iloc[-1]
-        if final_point == 1:
-            winner = self.player1_name
-        else:
-            winner = self.player2_name
-        if verbose:
-            print(winner, "won the game")
-
         
-        if verbose:
-            for index, value in enumerate(set_change_points):
-                if index == 1:
-                    if winner == set_3_pred:
-                        print("set 3 prediction is correct")
-                    else:
-                        print("set 3 prediction is wrong")
-    
-                elif index == 2:
-                    if winner == set_4_pred:
-                        print("set 4 prediction is correct")
-                    else:
-                        print("set 4 prediction is wrong")
-                        
-                elif index == 3:
-                    if winner == set_5_pred:
-                        print("set 5 prediction is correct")
-                    else:
-                        print("set 5 prediction is wrong")
-            #
+        # TODO: replace/reposition code which *prints* per-set predictions.
 
         self.set_change_points = set_change_points
         
@@ -640,25 +585,11 @@ class MarkovChain:
         winner_number = actual_winner-1
         #winner_number
 
-        #
-        # possible to optimize?
-        #
-        equal_elements = []
-
         # n-by-1 boolean array (True means predicted correctly)
         equal_elements = np.floor(predicted_winner) == winner_number
         
         result_array = equal_elements.astype(int)
         
-        # result_array : should have a 1 for every set which is predicted correctly; otherwise 0.
-        #
-        # end optimizable.
-        #
-
-        if verbose:
-            print("The length of the match is:", len(predicted_winner)+1 )
-            print(result_array)
-
         return result_array
         
 #########################################
