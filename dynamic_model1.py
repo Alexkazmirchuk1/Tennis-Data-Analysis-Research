@@ -52,29 +52,50 @@ def get_serve_probability(match_data, player):
     Outputs:
         p_array : 
     """
-    serve_no = match_data['server'].values
+    
+    server_no = match_data['server'].values
     point_victor = match_data['point_victor'].values
 
-    serve_point_won = 0
-    num_serves = 0
+    # Purpose: build a list-like of a cumulative rate of winning the point when 
+    # the player serves. For example, if the player has served twice and won 
+    # one of those points, the value would be 1/2=0.5. If on the following 
+    # point the player serves again, and wins the point again, the value gets 
+    # updated to (1+1)/(2+1) = 0.66. If on the following point they serve and 
+    # lose, the following value is (2+0)/(3+1) = 0.5.
+    #
+    # The value is carried forward on any points the player is not serving on.
+    
+    #serve_point_won = 0
+    #num_serves = 0
+    #p_array = []
+    #
+    #for index in range(len(server_no)):
+    #    if player == server_no[index]:
+    #        num_serves += 1
+    #
+    #        if player == point_victor[index]:
+    #            serve_point_won += 1
+    #
+    #    if num_serves == 0:
+    #        p_array.append(0)
+    #    else:
+    #        p_array.append(serve_point_won / num_serves)
+    #
+    #p_array = np.array(p_array)
+    
+    player_is_server = (server_no == player)
+    player_served_and_won = np.logical_and(player_is_server, point_victor == player)
 
-    # TODO: vectorize or otherwise pass this process into built-ins
-    p_array = []
+    num_serves_cumulative = np.cumsum(player_is_server)
+    won_point_cumulative = np.cumsum(player_served_and_won)
 
-    for index in range(len(serve_no)):
-        if player == serve_no[index]:
-            num_serves += 1
-
-            if player == point_victor[index]:
-                serve_point_won += 1
-
-        if num_serves == 0:
-            p_array.append(0)
-        else:
-            p_array.append(serve_point_won / num_serves)
-
-    p_array = np.array(p_array)
-
+    # if player hasn't served, a calculation 0/0 would occur.
+    # impute the probability below with 0/1 instead.
+    num_serves_cumulative[num_serves_cumulative==0] = 1
+    
+    p_array = won_point_cumulative/num_serves_cumulative
+    
+    
     return p_array
 
 
@@ -117,25 +138,35 @@ def modify_momentum(match_data, probability_array, player, r=1.3, q=0.4):
         probability_array : ...........
     '''
     # n = number of sets won
-    n = 0
-    lost = 0
-    loss_factor = 1
+    #n = 0
+    #lost = 0
+    #loss_factor = 1
     #x = 1.25
-
-    for index in range(len(probability_array)):
-        set_victor_array = match_data['set_victor'].values
-        won_set = set_victor_array[index] == player
-
-        if (won_set):
-            n += 1
-            n = n
-        elif set_victor_array[index] == 3 - player:
-            lost += 1
-            # probability_array[index] = probability_array[index]/(2*lost)
-            loss_factor = 1 + (q * lost)
-
-        probability_array[index] = (((r**n)-1)/(r**n) + (1/(r**n))*probability_array[index]) ** loss_factor
-        
+    #
+    #for index in range(len(probability_array)):
+    #    
+    #    won_set = set_victor_array[index] == player
+    #
+    #    if (won_set):
+    #        n += 1
+    #        n = n
+    #    elif set_victor_array[index] == 3 - player:
+    #        lost += 1
+    #        # probability_array[index] = probability_array[index]/(2*lost)
+    #        loss_factor = 1 + (q * lost)
+    #
+    #    probability_array[index] = (((r**n)-1)/(r**n) + (1/(r**n))*probability_array[index]) ** loss_factor
+    
+    set_victor_array = match_data['set_victor'].values
+    won_set_array = set_victor_array == player
+    lost_set_array = set_victor_array == (3-player)
+    
+    n = np.cumsum( won_set_array )
+    lost = np.cumsum( lost_set_array )
+    loss_factor = 1 + (q * lost)
+    
+    
+    probability_array = (((r**n)-1)/(r**n) + (1/(r**n))*probability_array) ** loss_factor
 
     return probability_array
 
@@ -154,27 +185,50 @@ def modify_momentum_err(match_data, momentum_array, player, s=0.0035):
     '''
 
     # unforced error total
-    n = 0
-    m = 0
+    #n = 0
+    #m = 0
 
+    # Counting the number of unforced errors.
+    
     unf_err_array = match_data[f'p{player}_unf_err'].values
-    for index in range(len(momentum_array)):
-        unf_err = unf_err_array[index] == 1
+    #for index in range(len(momentum_array)):
+    #    unf_err = unf_err_array[index] == 1
+    #
+    #    if (unf_err):
+    #        n += 1
 
-        if (unf_err):
-            n += 1
+    n = sum(unf_err_array[:len(momentum_array)] == 1)
 
     unf_err_array_2 = match_data[f'p{3-player}_unf_err'].values
-    for index in range(len(momentum_array)):
-        unf_err_2 = unf_err_array_2[index] == 1
-
-        if (unf_err_2):
-            m += 1
-
-        if n>= 0:
-            momentum_array[index] = momentum_array[index]-s*n + s*m
-            if momentum_array[index] < 0:
-                momentum_array[index] = 0
+    
+    # IMPORTANT: 
+    # TODO:
+    # Is this what is intended by the model (not the code)? 
+    # Currently the code uses n (the total number of unf errors after the fact), 
+    # an integer, compared to m, a cumulative number of unf errors for the second 
+    # player up to that point, an array.
+    #
+    # Doesn't make sense because n uses "future" values; and if we're trying to 
+    # model a sense of players feeling "overwhelmed" by making more unforced 
+    # errors than their opponent, it seems sensible to use data only up to that 
+    # point in the match.
+    
+    #for index in range(len(momentum_array)):
+    #    unf_err_2 = unf_err_array_2[index] == 1
+    #
+    #    if (unf_err_2):
+    #        m += 1
+    #
+    #    if n>= 0:
+    #        momentum_array[index] = momentum_array[index]-s*n + s*m
+    #        if momentum_array[index] < 0:
+    #            momentum_array[index] = 0
+    
+    # Vectorized version of above.
+    m = np.cumsum(unf_err_array_2[:len(momentum_array)] == 1)
+    momentum_array = np.maximum(momentum_array + s*(m-n), 0)
+    
+    
     return momentum_array
 
 def points_scored(match_data, points_array, player, uu= 1.005, cc=0.0001):
@@ -193,25 +247,45 @@ def points_scored(match_data, points_array, player, uu= 1.005, cc=0.0001):
     ww = 0
     mm = 0
     lost_factor=1
-
-    for index in range(len(points_array)):
-        points_victor_array = match_data['point_victor'].values
-        won_point = points_victor_array[index] == player
-
-        if (won_point):
-            ww += 1
     
-    for index in range(len(points_array)):
-        points_loss_array = match_data['point_victor'].values
-        lost_point = points_loss_array[index] == 3 - player
-
-        if (lost_point):
-            mm += 1
-            lost_factor = 1 + (mm * cc)
-
-            
-        points_array[index] = (((uu**ww)-1)/(uu**ww) + (1/(uu**ww)))*points_array[index]-mm*cc
-        
+    points_victor_array = match_data['point_victor'].values
+    
+    
+    # Important:
+    # TODO: 
+    # Similar to elsewhere, the value of "ww" being used in these calculations 
+    # is the sum of point_victor values mathcing that player, for the entire 
+    # match; while values for "mm" is dynamically changing for each value 
+    # in points_array, during the second loop. Is this what is intended?
+    
+    won_point = points_victor_array == player
+    lost_point = points_victor_array == 3 - player
+    
+    #for index in range(len(points_array)):
+    #    points_victor_array = match_data['point_victor'].values
+    #    won_point = points_victor_array[index] == player
+    #
+    #    if (won_point):
+    #        ww += 1
+    
+    ww = sum(won_point)
+    
+    #for index in range(len(points_array)):
+    #    points_loss_array = match_data['point_victor'].values
+    #    lost_point = points_loss_array[index] == 3 - player
+    #
+    #    if (lost_point):
+    #        mm += 1
+    #        lost_factor = 1 + (mm * cc)
+    #
+    #        
+    #    points_array[index] = (((uu**ww)-1)/(uu**ww) + (1/(uu**ww)))*points_array[index]-mm*cc
+    
+    mm = np.cumsum(lost_point)
+    prefactor = (((uu**ww)-1)/(uu**ww) + (1/(uu**ww))) # currently a float; not an array (ww is fixed)
+    
+    points_array = prefactor*points_array-mm*cc
+    
     return points_array
     
 ###########################
