@@ -58,6 +58,7 @@ def get_serve_probability(match_data, player):
     serve_point_won = 0
     num_serves = 0
 
+    # TODO: vectorize or otherwise pass this process into built-ins
     p_array = []
 
     for index in range(len(serve_no)):
@@ -71,6 +72,8 @@ def get_serve_probability(match_data, player):
             p_array.append(0)
         else:
             p_array.append(serve_point_won / num_serves)
+
+    p_array = np.array(p_array)
 
     return p_array
 
@@ -276,14 +279,16 @@ class MarkovChain:
         Outputs:
             pg1_array, pg2_array : arrays; 
         '''
-        pg1_array = []
-        pg2_array = []
+        #pg1_array = []
+        #pg2_array = []
+        #
+        #for index in range(self.max_length):
+        #    pg1, pg2 = prob_win_independent_game(p1_probability[index], p2_probability[index])
+        #
+        #    pg1_array.append(pg1)
+        #    pg2_array.append(pg2)
 
-        for index in range(self.max_length):
-            pg1, pg2 = prob_win_independent_game(p1_probability[index], p2_probability[index])
-
-            pg1_array.append(pg1)
-            pg2_array.append(pg2)
+        pg1_array, pg2_array = prob_win_independent_game(p1_probability[:self.max_length], p2_probability[:self.max_length])
 
         if debug:
             print("Probability of winning the game")
@@ -305,17 +310,21 @@ class MarkovChain:
         Outputs:
             ps1_array, ps2_array : arrays; ......
         '''
-        ps1_array = []
-        ps2_array = []
+        #ps1_array = []
+        #ps2_array = []
+        #
+        #for index in range(self.max_length):
+        #    ps1_array.append(prob_win_set(pg1_array[index]))
+        #    ps2_array.append(prob_win_set(pg2_array[index]))
 
-        for index in range(self.max_length):
-            ps1_array.append(prob_win_set(pg1_array[index]))
-            ps2_array.append(prob_win_set(pg2_array[index]))
+        ps1_array = prob_win_set(pg1_array[:self.max_length])
+        ps2_array = prob_win_set(pg2_array[:self.max_length])
 
         if debug:
             print("Probability of winning the set")
             print(ps1_array)
             print(ps2_array)
+
 
         return ps1_array, ps2_array
     
@@ -335,15 +344,19 @@ class MarkovChain:
         #pm1_array = []
         #pm2_array = []
 
-        pm1_array = np.zeros(self.max_length)
-        pm2_array = np.zeros(self.max_length)
+        #pm1_array = np.zeros(self.max_length)
+        #pm2_array = np.zeros(self.max_length)
+        # 
+        #for index in range(self.max_length):
+        #    #pm1_array.append(prob_win_match(ps1_array[index]))
+        #    #pm2_array.append(prob_win_match(ps2_array[index]))
+        #    pm1_array[index] = prob_win_match(ps1_array[index])
+        #    pm2_array[index] = prob_win_match(ps2_array[index])
         
-        for index in range(self.max_length):
-            #pm1_array.append(prob_win_match(ps1_array[index]))
-            #pm2_array.append(prob_win_match(ps2_array[index]))
-            pm1_array[index] = prob_win_match(ps1_array[index])
-            pm2_array[index] = prob_win_match(ps2_array[index])
-            
+        # Since the above calculation is a non-recursive polynomial calculation, 
+        # calculate them with array arithmetic.
+        pm1_array = prob_win_match(ps1_array[:self.max_length])
+        pm2_array = prob_win_match(ps2_array[:self.max_length])
 
         if debug:
             print("Probability of winning the match")
@@ -389,33 +402,25 @@ class MarkovChain:
         Inputs: None
         Outputs: fig,ax : pyplot figure/axis pair associated with the plot created.
         '''
-        # graph the performance of match flow + momentum
-        set_change_points = []
-
+        from matplotlib import pyplot as plt
         
-        old_entry = 1
-        for index, entry in enumerate(self.match['set_no']):
-            if entry != old_entry:
-                set_change_points.append(index + 1)
-                old_entry = entry
+        # find where we go from one set number to the next. These are sequential;
+        # e.g. self.match['set_no'] could look like [1, 1, 1, 1, 2, 2, 3, 3].
+        set_change_points = np.where( np.diff(self.match['set_no']) > 0 )[0]
 
-        plt.title("Game Flow")
-        plt.plot(range(len(self.p1_momentum)), self.p1_momentum, color="red", label=f"{self.player1_name}")
-        plt.plot(range(len(self.p2_momentum)), self.p2_momentum, color="blue", label=f"{self.player2_name}")
-        plt.xlabel("Point Number")
-        plt.ylabel("Performance Rate")
-        plt.legend()
+        fig,ax = plt.subplots()
+        
+        ax.plot(range(len(self.p1_momentum)), self.p1_momentum, color="red", label=f"{self.player1_name}")
+        ax.plot(range(len(self.p2_momentum)), self.p2_momentum, color="blue", label=f"{self.player2_name}")
+        
+        
+        ax.set(title="Game Flow", xlabel="Point Number", ylabel="Performance Rate")
+        ax.legend(loc='upper right')
 
-        plt.text(20, -.04, 'Set 1', verticalalignment='bottom')
+        ax.text(20, -.04, 'Set 1', verticalalignment='bottom')
         for index, value in enumerate(set_change_points):
-            plt.axvline(x=value, color='gray', linestyle='--')
-            plt.text(value + 20, -.04, f"Set {index + 2}", verticalalignment='bottom')
-
-        plt.show()
-        
-        # TODO : rewrite plotting commands here in the object-oriented framework
-        fig = plt.gcf()
-        ax = plt.gca()
+            ax.axvline(x=value, color='gray', linestyle='--')
+            ax.text(value + 20, -.04, f"Set {index + 2}", verticalalignment='bottom')
         
         return fig,ax
 
@@ -595,6 +600,7 @@ if __name__=="__main__":
     
     raw_data = tennis_data.load_2021()
     MATCHES_TO_EXAMINE = raw_data['match_id'].unique()
+
     # MATCHES_TO_EXAMINE = tennis_data.five_sets_2021
     
     # For 2023: 
