@@ -1,6 +1,9 @@
 
 import pandas as pd
 
+# TODO: only if necessary, make this operating system agnostic.
+DATA_FOLDER = 'data/'
+
 # TODO: programmatically filter to this
 five_sets_2021 = [
     '2021-wimbledon-1104', 
@@ -30,7 +33,7 @@ five_sets_2021 = [
     '2021-wimbledon-1502'
 ]
 
-def load_2021(FILE='2021-wimbledon-data.csv', exclusions=['2021-wimbledon-1149']):
+def load_2021(FILE=DATA_FOLDER+'2021-wimbledon-data.csv', exclusions=['2021-wimbledon-1149']):
     '''
     Outputs a Pandas dataframe, loading the file while excluding 
     the given match_ids.
@@ -47,7 +50,7 @@ def load_2021(FILE='2021-wimbledon-data.csv', exclusions=['2021-wimbledon-1149']
     df = df[mask]
     return df
     
-def load_2023(FILE='2023-wimbledon-data.csv', exclusions=[]):
+def load_2023(FILE=DATA_FOLDER+'2023-wimbledon-data.csv', exclusions=[]):
     '''
     Outputs a Pandas dataframe, loading the file while excluding 
     the given match_ids.
@@ -63,3 +66,4 @@ def load_2023(FILE='2023-wimbledon-data.csv', exclusions=[]):
     mask = ~ df['match_id'].isin(exclusions)
     df = df[mask]
     return df
+

@@ -533,6 +533,8 @@ class MarkovChain:
         
         result_array = self.determine_results(data, final_point)
 
+        result_array = result_array.flatten()
+
         return result_array
         
     #
