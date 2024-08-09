@@ -137,25 +137,6 @@ def modify_momentum(match_data, probability_array, player, r=1.3, q=0.4):
     Outputs:
         probability_array : ...........
     '''
-    # n = number of sets won
-    #n = 0
-    #lost = 0
-    #loss_factor = 1
-    #x = 1.25
-    #
-    #for index in range(len(probability_array)):
-    #    
-    #    won_set = set_victor_array[index] == player
-    #
-    #    if (won_set):
-    #        n += 1
-    #        n = n
-    #    elif set_victor_array[index] == 3 - player:
-    #        lost += 1
-    #        # probability_array[index] = probability_array[index]/(2*lost)
-    #        loss_factor = 1 + (q * lost)
-    #
-    #    probability_array[index] = (((r**n)-1)/(r**n) + (1/(r**n))*probability_array[index]) ** loss_factor
     
     set_victor_array = match_data['set_victor'].values
     won_set_array = set_victor_array == player
@@ -183,51 +164,22 @@ def modify_momentum_err(match_data, momentum_array, player, s=0.0035):
     Outputs:
         momentum_array : ............
     '''
-
-    # unforced error total
-    #n = 0
-    #m = 0
-
-    # Counting the number of unforced errors.
     
     unf_err_array = match_data[f'p{player}_unf_err'].values
-    #for index in range(len(momentum_array)):
-    #    unf_err = unf_err_array[index] == 1
-    #
-    #    if (unf_err):
-    #        n += 1
-
-    n = sum(unf_err_array[:len(momentum_array)] == 1)
-
+    # unforced errors for the other player, regardless of their player index 
+    # (indices are either 1 or 2).
     unf_err_array_2 = match_data[f'p{3-player}_unf_err'].values
     
-    # IMPORTANT: 
-    # TODO:
-    # Is this what is intended by the model (not the code)? 
-    # Currently the code uses n (the total number of unf errors after the fact), 
-    # an integer, compared to m, a cumulative number of unf errors for the second 
-    # player up to that point, an array.
-    #
-    # Doesn't make sense because n uses "future" values; and if we're trying to 
-    # model a sense of players feeling "overwhelmed" by making more unforced 
-    # errors than their opponent, it seems sensible to use data only up to that 
-    # point in the match.
+    cumulative_unf_err_p1 = sum(unf_err_array[:len(momentum_array)] == 1)
+    cumulative_unf_err_p2 = sum(unf_err_array_2[:len(momentum_array)] == 1)
     
-    #for index in range(len(momentum_array)):
-    #    unf_err_2 = unf_err_array_2[index] == 1
-    #
-    #    if (unf_err_2):
-    #        m += 1
-    #
-    #    if n>= 0:
-    #        momentum_array[index] = momentum_array[index]-s*n + s*m
-    #        if momentum_array[index] < 0:
-    #            momentum_array[index] = 0
+    # TODO: double-check sign (momentum should go up if opponent has 
+    # made more unforced errors?)
+    unf_err_advantage = cumulative_unf_err_p2 - cumulative_unf_err_p1
     
-    # Vectorized version of above.
-    m = np.cumsum(unf_err_array_2[:len(momentum_array)] == 1)
-    momentum_array = np.maximum(momentum_array + s*(m-n), 0)
-    
+    # At any point in the match, based on who has made more unforced errors 
+    # to that point, accumulate a momentum. 
+    momentum_array = np.maximum(momentum_array + s*unf_err_advantage, 0)
     
     return momentum_array
 
@@ -298,8 +250,9 @@ def points_scored(match_data, points_array, player, uu= 1.005, cc=0.0001):
 # 5 - Graph the probability of winning the set as point values increase
 import numpy as np
 
-class MarkovChain:
-    def __init__(self, raw_data, match_to_examine, rv=1.25, sv=0.005, qv =0.4, uuv = 1.005, ccv =0.0001 ):
+class DynamicTennisModel:
+    def __init__(self, raw_data, match_to_examine, rv=1.25, sv=0.005, qv =0.4, uuv = 1.005, ccv =0.0001):
+        
         self.match = raw_data[raw_data['match_id'] == match_to_examine]
         self.player1_name = self.match['player1'].values[0]
         self.player2_name = self.match['player2'].values[0]
@@ -467,7 +420,28 @@ class MarkovChain:
         return p1_momentum11, p2_momentum22
     
     # 5 - Graph
-    def graph_momentum(self):
+    def add_graph_decorations(self, ax):
+        '''
+        Given a pyplot Axis handle, put decorations such as markers for the set
+        on it. Uses data from the match saved in the instantiation of this object.
+        
+        Inputs: ax, axis handle.
+        Outputs: None (Artists are added to the same Axis)
+        '''
+        
+        ax.set(xlabel="Point Number")
+
+        # TODO: fold this edge case into the loop below.
+        ax.text(20, -.04, 'Set 1', verticalalignment='bottom')
+        
+        set_change_points = 1 + np.where( np.diff(self.match['set_no']) > 0 )[0]
+        for index, value in enumerate(set_change_points):
+            ax.axvline(x=value, color='gray', linestyle='--')
+            ax.text(value + 20, -.04, f"Set {index + 2}", verticalalignment='bottom')
+        
+        return None
+    
+    def graph_momentum(self, ax=None):
         '''
         Creates a plot of the dynamically evolving momentum values for the match 
         studied. It is assumed self.p1_momentum and self.p2_momentum have been 
@@ -478,24 +452,17 @@ class MarkovChain:
         '''
         from matplotlib import pyplot as plt
         
-        # find where we go from one set number to the next. These are sequential;
-        # e.g. self.match['set_no'] could look like [1, 1, 1, 1, 2, 2, 3, 3], 
-        # and we would want set_change_points to be [4, 6].
-        set_change_points = 1 + np.where( np.diff(self.match['set_no']) > 0 )[0]
-
-        fig,ax = plt.subplots()
+        if ax is None:
+            fig,ax = plt.subplots()
+        else:
+            fig = ax.get_figure()
+        
+        self.add_graph_decorations(ax)
         
         ax.plot(range(len(self.p1_momentum)), self.p1_momentum, color="red", label=f"{self.player1_name}")
         ax.plot(range(len(self.p2_momentum)), self.p2_momentum, color="blue", label=f"{self.player2_name}")
         
-        
-        ax.set(title="Game Flow", xlabel="Point Number", ylabel="Performance Rate")
         ax.legend(loc='upper right')
-
-        ax.text(20, -.04, 'Set 1', verticalalignment='bottom')
-        for index, value in enumerate(set_change_points):
-            ax.axvline(x=value, color='gray', linestyle='--')
-            ax.text(value + 20, -.04, f"Set {index + 2}", verticalalignment='bottom')
         
         return fig,ax
 
@@ -531,9 +498,13 @@ class MarkovChain:
         data = np.vstack([self.p1_momentum[self.set_change_points], self.p2_momentum[self.set_change_points]])
         data = data.T
         
-        result_array = self.determine_results(data, final_point)
-
-        result_array = result_array.flatten()
+        # pad result_array with NaN in matches with fewer than five sets.
+        result_array = np.nan * np.zeros(4)
+        _tmp = self.determine_results(data, final_point)
+        #result_array = result_array.flatten()
+        result_array[:len(_tmp)] = _tmp.flatten()
+        
+        #print(_tmp.flatten())
 
         return result_array
         
@@ -605,7 +576,7 @@ if __name__=="__main__":
 
     import tennis_data
     
-    raw_data = tennis_data.load_2021()
+    raw_data = tennis_data.load_2023()
     MATCHES_TO_EXAMINE = raw_data['match_id'].unique()
 
     # MATCHES_TO_EXAMINE = tennis_data.five_sets_2021
@@ -626,35 +597,30 @@ if __name__=="__main__":
     # CODE TO BE AUTOMATED/TESTED OVER PARAM VALUES.
     #if True: 
     for i,j in itertools.product( range(num), range(num) ):
-        set1_correct = set1_total = set2_correct = set2_total = set3_correct = set3_total = set4_correct = set4_total = 0
+        #set1_correct = set1_total = set2_correct = set2_total = set3_correct = set3_total = set4_correct = set4_total = 0
+        
+        correct_preds = np.zeros((4,num,num), dtype=int)
+        num_preds = np.zeros((4,num,num), dtype=int)
         
         # 
         
         print(i,j)
         
         for MATCH_TO_EXAMINE in MATCHES_TO_EXAMINE:
-            # TODO: redesign code so that files get loaded *once*, outside the loop.
             model = MarkovChain(raw_data, MATCH_TO_EXAMINE,  uuv=uuvalues[j]  , ccv=ccvalues[i])
             model.train()
-            #if i == 0 and j == 0:
-            #     model.graph_momentum()
+            
             result_array = model.prediction()
+            
+            # accumulate statistics based on the set number being predicted.
+            for k in range(4):
+                if not np.isnan(result_array[k]):
+                    correct_preds[k,i,j] += result_array[k]
+                    num_preds[k,i,j] += 1
+        #
         
-            try:
-                set1_correct += result_array[0,0]
-                set1_total += 1
-        
-                set2_correct += result_array[1,0]
-                set2_total += 1
-        
-                set3_correct += result_array[2,0]
-                set3_total += 1
-        
-                set4_correct += result_array[3,0]
-                set4_total += 1
-            finally:
-                continue
-        results[i,j] = set4_correct/set4_total # store prediction rate.
+        # set 4 results
+        results[i,j] = correct_preds[3,i,j]/num_preds[3,i,j] # store prediction rate.
         
     if False:
         print(rvalues[i], svalues[j])
