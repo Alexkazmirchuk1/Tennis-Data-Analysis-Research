@@ -1,4 +1,5 @@
 import numpy as np
+from matplotlib import pyplot as plt
 
 #################################
 
@@ -251,7 +252,8 @@ def points_scored(match_data, points_array, player, uu= 1.005, cc=0.0001):
 import numpy as np
 
 class DynamicTennisModel:
-    def __init__(self, raw_data, match_to_examine, rv=1.25, sv=0.005, qv =0.4, uuv = 1.005, ccv =0.0001):
+    def __init__(self, raw_data, match_to_examine, rv=1.25, sv=0.005, qv =0.4, uuv = 1.005, ccv =0.0001,
+        palette=plt.cm.Set1):
         
         self.match = raw_data[raw_data['match_id'] == match_to_examine]
         self.player1_name = self.match['player1'].values[0]
@@ -265,6 +267,11 @@ class DynamicTennisModel:
         self.qv = qv
         self.uuv = uuv
         self.ccv = ccv
+        
+        # colormap to use to generate colors associated with the players.
+        self.palette = palette
+        
+        return
 
     # 1 - Get serve probabilities
     def get_serve_probabilities(self, debug=False):
@@ -432,12 +439,15 @@ class DynamicTennisModel:
         ax.set(xlabel="Point Number")
 
         # TODO: fold this edge case into the loop below.
-        ax.text(20, -.04, 'Set 1', verticalalignment='bottom')
+        #ax.text(20, -.04, 'Set 1', verticalalignment='bottom')
         
-        set_change_points = 1 + np.where( np.diff(self.match['set_no']) > 0 )[0]
-        for index, value in enumerate(set_change_points):
-            ax.axvline(x=value, color='gray', linestyle='--')
-            ax.text(value + 20, -.04, f"Set {index + 2}", verticalalignment='bottom')
+        set_change_points = np.where( np.diff(self.match['set_no']) > 0 )[0]
+        set_change_points = list([0, *set_change_points[:-1]])
+        for index, _x in enumerate(set_change_points):
+            ax.axvline(x=_x, color='#333', linestyle='--')
+            #ax.text(value + 20, -.04, f"Set {index + 2}", verticalalignment='bottom')
+            ax.text(_x, ax.get_ylim()[0], f"Set {index+1}", 
+            va='bottom', ha='left', rotation=90, bbox={'facecolor':'#fff', 'edgecolor':'#333', 'boxstyle':'square,pad=0.1'})
         
         return None
     
