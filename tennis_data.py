@@ -48,6 +48,12 @@ def load_2021(FILE=DATA_FOLDER+'2021-wimbledon-data.csv', exclusions=['2021-wimb
     df = pd.read_csv(FILE)
     mask = ~ df['match_id'].isin(exclusions)
     df = df[mask]
+    
+    # helps searching by last name/family names
+    # magic string processing syntax.
+    df['p1_lastname'] = df['player1'].str.split().str[1:].str.join(' ')
+    df['p2_lastname'] = df['player2'].str.split().str[1:].str.join(' ')
+    
     return df
     
 def load_2023(FILE=DATA_FOLDER+'2023-wimbledon-data.csv', exclusions=[]):
@@ -65,5 +71,11 @@ def load_2023(FILE=DATA_FOLDER+'2023-wimbledon-data.csv', exclusions=[]):
     df = pd.read_csv(FILE)
     mask = ~ df['match_id'].isin(exclusions)
     df = df[mask]
+    
+    # helps searching by last name/family names
+    # magic string processing syntax.
+    df['p1_lastname'] = df['player1'].str.split().str[1:].str.join(' ')
+    df['p2_lastname'] = df['player2'].str.split().str[1:].str.join(' ')
+    
     return df
 
