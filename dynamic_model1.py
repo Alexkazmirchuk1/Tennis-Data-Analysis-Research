@@ -258,9 +258,24 @@ class DynamicTennisModel:
         self.match = raw_data[raw_data['match_id'] == match_to_examine]
         self.player1_name = self.match['player1'].values[0]
         self.player2_name = self.match['player2'].values[0]
+        self.player1_surname = self.match['p1_lastname'].values[0]
+        self.player2_surname = self.match['p2_lastname'].values[0]
+        
+        self.names = [self.player1_name, self.player2_name]
+        self.surnames = [self.player1_surname, self.player2_surname]
+        
+        set_change_points = np.where( np.diff(self.match['set_no']) > 0 )[0]
+        set_victors = self.match['set_victor']
+        # integer 1/2 of which player won final set. winner of final set 
+        # must be the match winner.
+        match_winner = set_victors.iloc[-1]
+        self.winner_idx = match_winner-1
+        self.winner_name = self.names[self.winner_idx]
+        
+        ###
         self.max_length = 0
-        self.p1_momentum = []
-        self.p2_momentum = []
+        #self.p1_momentum = []
+        #self.p2_momentum = []
 
         self.sv = sv
         self.rv = rv
@@ -435,12 +450,35 @@ class DynamicTennisModel:
         Inputs: ax, axis handle.
         Outputs: None (Artists are added to the same Axis)
         '''
+        from matplotlib import ticker
+        
         set_change_points = np.where( np.diff(self.match['set_no']) > 0 )[0]
-        set_change_points = list([0, *set_change_points[:-1]])
-        for index, _x in enumerate(set_change_points):
-            ax.axvline(x=_x, color='#333', linestyle='--', zorder=-1000)
-            ax.text(_x, ax.get_ylim()[0], f"Set {index+1}", 
-            va='bottom', ha='left', rotation=90, bbox={'facecolor':'#fff', 'edgecolor':'#333', 'boxstyle':'square,pad=0.2'})
+        set_change_points = list([0, *set_change_points])
+        game_change_points = np.where(np.diff(self.match['game_no'])>0)[0]
+        
+        ax.xaxis.set_major_locator(ticker.FixedLocator(set_change_points))
+        ax.tick_params(which='major',length=8)
+        ax.xaxis.grid(True, which='major', linestyle='--', color='#333')
+        
+        ax.set_xticklabels([f"Set {_i+1}" for _i in range(len(set_change_points))])
+        #ax.tick_params(axis="x", ha="left")
+        plt.setp(ax.get_xticklabels(), horizontalalignment='left')
+        
+        ax.xaxis.set_minor_locator(ticker.FixedLocator(game_change_points))
+        ax.tick_params(which='minor',length=4)
+        ax.xaxis.grid(False, which='minor')
+        
+        #for index, _x in enumerate(set_change_points):
+        #    #ax.axvline(x=_x, color='#333', linestyle='--', zorder=-1000)
+        #    ax.text(_x, ax.get_ylim()[0], f"Set {index+1}", 
+        #    va='bottom', ha='left', rotation=90, 
+        #    bbox={'facecolor':'#fff', 'edgecolor':'#333', 'boxstyle':'square,pad=0.2'})
+        
+        
+        for _k in range(2):
+            for spine in ['bottom', 'top', 'right']:
+                ax.spines[spine].set_visible(False)
+        ax.yaxis.grid(True)
         
         return None
     
@@ -462,8 +500,8 @@ class DynamicTennisModel:
         
         self.add_graph_decorations(ax)
         
-        ax.plot(range(len(self.p1_momentum)), self.p1_momentum, color=self.palette(0), label=f"{self.player1_name}")
-        ax.plot(range(len(self.p2_momentum)), self.p2_momentum, color=self.palette(1), label=f"{self.player2_name}")
+        ax.plot(range(len(self.p1_momentum)), self.p1_momentum, color=self.palette(0), label=f"{self.player1_surname}")
+        ax.plot(range(len(self.p2_momentum)), self.p2_momentum, color=self.palette(1), label=f"{self.player2_surname}")
         
         ax.legend(loc='upper right')
         
@@ -489,21 +527,27 @@ class DynamicTennisModel:
         #        set_change_points.append(index + 1)
         #        old_entry = entry
         #        
-        set_change_points = 1 + np.where( np.diff(self.match['set_no']) > 0 )[0]
+        set_change_points = np.where( np.diff(self.match['set_no']) > 0 )[0]
         
         set_victors = self.match['set_victor']
-        final_point = set_victors.iloc[-1]
         
-        # TODO: replace/reposition code which *prints* per-set predictions.
-
+        # integer 1/2 of which player won final set. winner of final set 
+        # must be the match winner.
+        match_winner = set_victors.iloc[-1]
+        
         self.set_change_points = set_change_points
         
-        data = np.vstack([self.p1_momentum[self.set_change_points], self.p2_momentum[self.set_change_points]])
-        data = data.T
+        set_change_values = np.vstack(
+            [
+            self.p1_momentum[self.set_change_points], 
+            self.p2_momentum[self.set_change_points]
+            ]
+        )
         
         # pad result_array with NaN in matches with fewer than five sets.
         result_array = np.nan * np.zeros(4)
-        _tmp = self.determine_results(data, final_point)
+        
+        _tmp = self.determine_results(set_change_values, match_winner)
         #result_array = result_array.flatten()
         result_array[:len(_tmp)] = _tmp.flatten()
         
@@ -545,8 +589,8 @@ class DynamicTennisModel:
         ..........
         
         Inputs:
-            data : ...
-            win : ...
+            data : 2-by-k array of values; rows correspond to player1/player2
+            win : integer (1 or 2) indicating match winner
             verbose : boolean, whether to print diagnostic text; default False
             
         Outputs:
@@ -554,15 +598,14 @@ class DynamicTennisModel:
             whether the current momentum values correctly predict the end 
             result of the match.
         '''
-        predicted_winner = 1+(np.diff(data, axis=1) )
+        performance_diff = data[1] - data[0] # decision: performance_diff>0?
 
-        actual_winner = win*np.ones( np.shape(predicted_winner) )
-
-        winner_number = actual_winner-1
-        #winner_number
+        # array; map player1->0, player2->1.
+        winner_arr = (win-1)*np.ones( np.shape(performance_diff) )
 
         # n-by-1 boolean array (True means predicted correctly)
-        equal_elements = np.floor(predicted_winner) == winner_number
+        self.set_predictions = (performance_diff>0).astype(int)
+        equal_elements = (performance_diff>0) == winner_arr
         
         result_array = equal_elements.astype(int)
         
