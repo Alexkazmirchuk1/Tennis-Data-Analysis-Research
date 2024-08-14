@@ -1,5 +1,6 @@
 import numpy as np
 from matplotlib import pyplot as plt
+from alt_models import MatchStats
 
 #################################
 
@@ -255,25 +256,11 @@ class DynamicTennisModel:
     def __init__(self, raw_data, match_to_examine, rv=1.25, sv=0.005, qv =0.4, uuv = 1.005, ccv =0.0001,
         palette=plt.cm.Set1):
         
-        self.match = raw_data[raw_data['match_id'] == match_to_examine]
-        self.player1_name = self.match['player1'].values[0]
-        self.player2_name = self.match['player2'].values[0]
-        self.player1_surname = self.match['p1_lastname'].values[0]
-        self.player2_surname = self.match['p2_lastname'].values[0]
-        
-        self.names = [self.player1_name, self.player2_name]
-        self.surnames = [self.player1_surname, self.player2_surname]
-        
-        set_change_points = np.where( np.diff(self.match['set_no']) > 0 )[0]
-        set_victors = self.match['set_victor']
-        # integer 1/2 of which player won final set. winner of final set 
-        # must be the match winner.
-        match_winner = set_victors.iloc[-1]
-        self.winner_idx = match_winner-1
-        self.winner_name = self.names[self.winner_idx]
+        # Collect basic information about the match
+        MatchStats.__init__(self, raw_data, match_to_examine)
         
         ###
-        self.max_length = 0
+        #self.max_length = 0
         #self.p1_momentum = []
         #self.p2_momentum = []
 
@@ -452,8 +439,7 @@ class DynamicTennisModel:
         '''
         from matplotlib import ticker
         
-        set_change_points = np.where( np.diff(self.match['set_no']) > 0 )[0]
-        set_change_points = list([0, *set_change_points])
+        set_change_points = list([0, *self.set_change_points])
         game_change_points = np.where(np.diff(self.match['game_no'])>0)[0]
         
         ax.xaxis.set_major_locator(ticker.FixedLocator(set_change_points))
@@ -517,47 +503,25 @@ class DynamicTennisModel:
             correctly predicts the final result of the match; as an integer 
             (0 = incorrectly predicted, 1 = correctly predicted).
         '''
-        # Find who was performing better before sets 3 4 and 5
-        #set_change_points = []
-        #
-        #
-        #old_entry = 1
-        #for index, entry in enumerate(self.match['set_no']):
-        #    if entry != old_entry:
-        #        set_change_points.append(index + 1)
-        #        old_entry = entry
-        #        
-        set_change_points = np.where( np.diff(self.match['set_no']) > 0 )[0]
-        
-        set_victors = self.match['set_victor']
-        
-        # integer 1/2 of which player won final set. winner of final set 
-        # must be the match winner.
-        match_winner = set_victors.iloc[-1]
-        
-        self.set_change_points = set_change_points
-        
-        set_change_values = np.vstack(
-            [
+        set_change_values = [
             self.p1_momentum[self.set_change_points], 
             self.p2_momentum[self.set_change_points]
-            ]
-        )
+        ]
         
         # pad result_array with NaN in matches with fewer than five sets.
-        result_array = np.nan * np.zeros(4)
+        pred = np.nan * np.zeros(5)
         
-        _tmp = self.determine_results(set_change_values, match_winner)
-        #result_array = result_array.flatten()
-        result_array[:len(_tmp)] = _tmp.flatten()
-        
-        #print(_tmp.flatten())
+        # decision: performance_diff>0?
+        performance_diff = set_change_values[1] - set_change_values[0]
+        pred[:len(performance_diff)] = 1 + (performance_diff>0).astype(int)
 
-        return result_array
-        
+        return pred
     #
     
-    def train(self, debug=False):
+    def evaluate_prediction(self, pred):
+        return (pred == self.match_winner).astype(int)
+    
+    def fit(self, debug=False):
         '''
         Runs the model for the match this object was instantiated with.
         Updates self.p1_momentum and self.p2_momentum.
@@ -584,33 +548,6 @@ class DynamicTennisModel:
         self.p2_momentum = np.array(self.p2_momentum)
         return
     
-    def determine_results(self, data, win, verbose=False):
-        '''
-        ..........
-        
-        Inputs:
-            data : 2-by-k array of values; rows correspond to player1/player2
-            win : integer (1 or 2) indicating match winner
-            verbose : boolean, whether to print diagnostic text; default False
-            
-        Outputs:
-            result_array : integer 0/1 array; whether at the end of set i+1 
-            whether the current momentum values correctly predict the end 
-            result of the match.
-        '''
-        performance_diff = data[1] - data[0] # decision: performance_diff>0?
-
-        # array; map player1->0, player2->1.
-        winner_arr = (win-1)*np.ones( np.shape(performance_diff) )
-
-        # n-by-1 boolean array (True means predicted correctly)
-        self.set_predictions = (performance_diff>0).astype(int)
-        equal_elements = (performance_diff>0) == winner_arr
-        
-        result_array = equal_elements.astype(int)
-        
-        return result_array
-        
 #########################################
 
 if __name__=="__main__":
@@ -653,10 +590,11 @@ if __name__=="__main__":
         print(i,j)
         
         for MATCH_TO_EXAMINE in MATCHES_TO_EXAMINE:
-            model = MarkovChain(raw_data, MATCH_TO_EXAMINE,  uuv=uuvalues[j]  , ccv=ccvalues[i])
-            model.train()
+            model = DynamicTennisModel(raw_data, MATCH_TO_EXAMINE,  uuv=uuvalues[j]  , ccv=ccvalues[i])
+            model.fit()
             
-            result_array = model.prediction()
+            pred = model.prediction()
+            result_array = model.evaluate_prediction(pred)
             
             # accumulate statistics based on the set number being predicted.
             for k in range(4):
