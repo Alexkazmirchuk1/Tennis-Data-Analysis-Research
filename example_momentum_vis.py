@@ -13,10 +13,10 @@ import numpy as np
 # Djokovic/Alcaraz: 30
 # 
 
-df_raw = tennis_data.load_2023()
+df_raw = tennis_data.load_2021()
 matches = df_raw['match_id'].unique()
 
-my_match = matches[30]
+my_match = matches[18]
 
 # visualize momentum only to help validate upstream changes.
 
@@ -25,7 +25,7 @@ model.train()
 
 pred = model.prediction()
 
-fig,ax = plt.subplots(2,1, figsize=(6,4), sharex=True, gridspec_kw={'height_ratios':[3,1]})
+fig,ax = plt.subplots(2,1, figsize=(8,6), sharex=True, gridspec_kw={'height_ratios':[3,1]})
 
 fig,ax[0] = model.graph_momentum(ax=ax[0])
 
@@ -33,6 +33,13 @@ fig,ax[0] = model.graph_momentum(ax=ax[0])
 unf_diff = np.cumsum( model.match['p2_unf_err'].values - model.match['p1_unf_err'].values )
 
 ax[1].plot(np.arange(len(unf_diff)), unf_diff, c='k')
+
+# fill the plot with a color showing which player currently has fewer total 
+# unforced errors to that point.
+p1_lead = unf_diff>=0
+ax[1].fill_between(np.arange(len(unf_diff)), unf_diff, 0, where=p1_lead, color=plt.cm.Set1(0), alpha=0.5)
+ax[1].fill_between(np.arange(len(unf_diff)), 0, unf_diff, where=~p1_lead, color=plt.cm.Set1(1), alpha=0.5)
+
 ax[1].set(yticks=[0])
 ax[1].yaxis.grid(True)
 
@@ -40,12 +47,14 @@ model.add_graph_decorations(ax[1])
 
 ax[0].set(ylabel="Performance", xlim=[0,model.match.shape[0]], ylim=[0,1.1])
 ax[0].yaxis.set_major_locator(ticker.MultipleLocator(0.25))
+ax[0].yaxis.grid(True, lw=0.5)
 
 ax[1].set(ylabel="Unf err diff")
 
 for _k in range(2):
-    for spine in ['bottom', 'top', 'right']:
+    ax[_k].set_xticks([])
+    for spine in ['bottom', 'top', 'right', 'left']:
         ax[_k].spines[spine].set_visible(False)
-
+        
 fig.show()
 

@@ -435,19 +435,12 @@ class DynamicTennisModel:
         Inputs: ax, axis handle.
         Outputs: None (Artists are added to the same Axis)
         '''
-        
-        ax.set(xlabel="Point Number")
-
-        # TODO: fold this edge case into the loop below.
-        #ax.text(20, -.04, 'Set 1', verticalalignment='bottom')
-        
         set_change_points = np.where( np.diff(self.match['set_no']) > 0 )[0]
         set_change_points = list([0, *set_change_points[:-1]])
         for index, _x in enumerate(set_change_points):
-            ax.axvline(x=_x, color='#333', linestyle='--')
-            #ax.text(value + 20, -.04, f"Set {index + 2}", verticalalignment='bottom')
+            ax.axvline(x=_x, color='#333', linestyle='--', zorder=-1000)
             ax.text(_x, ax.get_ylim()[0], f"Set {index+1}", 
-            va='bottom', ha='left', rotation=90, bbox={'facecolor':'#fff', 'edgecolor':'#333', 'boxstyle':'square,pad=0.1'})
+            va='bottom', ha='left', rotation=90, bbox={'facecolor':'#fff', 'edgecolor':'#333', 'boxstyle':'square,pad=0.2'})
         
         return None
     
@@ -469,8 +462,8 @@ class DynamicTennisModel:
         
         self.add_graph_decorations(ax)
         
-        ax.plot(range(len(self.p1_momentum)), self.p1_momentum, color="red", label=f"{self.player1_name}")
-        ax.plot(range(len(self.p2_momentum)), self.p2_momentum, color="blue", label=f"{self.player2_name}")
+        ax.plot(range(len(self.p1_momentum)), self.p1_momentum, color=self.palette(0), label=f"{self.player1_name}")
+        ax.plot(range(len(self.p2_momentum)), self.p2_momentum, color=self.palette(1), label=f"{self.player2_name}")
         
         ax.legend(loc='upper right')
         
