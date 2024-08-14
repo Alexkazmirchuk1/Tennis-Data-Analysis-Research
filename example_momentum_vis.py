@@ -23,9 +23,7 @@ my_match = matches[30]
 # visualize momentum only to help validate upstream changes.
 
 model = dm.DynamicTennisModel(df_raw, my_match)
-model.train()
-
-pred = model.prediction()
+model.fit()
 
 fig,ax = plt.subplots(2,1, figsize=(8,6), sharex=True, gridspec_kw={'height_ratios':[3,1]})
 
