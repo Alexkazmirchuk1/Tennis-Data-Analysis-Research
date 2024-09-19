@@ -21,7 +21,9 @@ class MatchStats:
         
         self.set_victors = self.match['set_victor'][self.match['set_victor'] != 0]
         self.point_victors = self.match['point_victor'][self.match['point_victor'] != 0]
-        self.game_victors = self.match['game_victor'][self.match['game_victor'] != 0]
+        self.game_victors = self.match['game_victor'].values
+        self.unf_err = self.match['p1_unf_err'][self.match['p1_unf_err'] != 0]
+        
         
         self.winner_id = self.match_winner
         self.winner_name = self.names[self.winner_id - 1]
@@ -134,7 +136,53 @@ class CumulativePointWinnerModel:
 
 # TODO
 #class CumulativeGameWinnerModel:
-
+class CumulativeGameWinnerModel:
+    '''
+    At the end of set i, whoever won *more games until that point* is predicted
+    to be the winner.
+    
+    If it is a tie, whoever had previously been in the lead is marked as the
+    prediction.
+    '''
+    def __init__(self, raw_data, match_to_examine):
+        # Initialize using MatchStats to get the match details
+        MatchStats.__init__(self, raw_data, match_to_examine)
+        return
+    
+    def fit(self):
+        # Calculate cumulative games won by each player
+        self.p1_game_cumulative = np.cumsum(self.game_victors == 1)
+        self.p2_game_cumulative = np.cumsum(self.game_victors == 2)
+    
+        # Identify the end of each set (your existing logic)
+        self.set_change_points = np.where(np.diff(self.match['set_no']) > 0)[0]
+        self.set_change_points = np.append(self.set_change_points, len(self.game_victors) - 1)
+        
+        return
+    
+    def prediction(self):
+        '''
+        Output: Prediction at the end of each set to predict the winner of the match.
+        '''
+        game_predictions = []
+        previous_game__pred = None
+        
+        for i in self.set_change_points:
+            # Get cumulative points up to the end of the current set
+            p1_games = self.p1_game_cumulative[i]
+            p2_games = self.p2_game_cumulative[i]
+            
+            # Determine the current prediction
+            if p2_games > p1_games:
+                current_game_pred = 2
+            else: 
+                current_game_pred = 1
+            
+            game_predictions.append(current_game_pred)
+            previous_game__pred = current_game_pred
+        
+        # Return the predictions
+        return np.array(game_predictions)
 
 # TODO
 #class CumulativeUnfErrModel:
@@ -151,7 +199,7 @@ if __name__=="__main__":
     df_raw = tennis_data.load_2023()
     matches = df_raw['match_id'].unique()
 
-    my_match = matches[8]
+    my_match = matches[11]
     stats = MatchStats(df_raw, my_match)
     
     
@@ -171,6 +219,11 @@ if __name__=="__main__":
     model3 = CumulativePointWinnerModel(df_raw, my_match)
     model3.fit()
     print( model3.prediction() )
+
+    print("Based on current game leader:")
+    model4 = CumulativeGameWinnerModel(df_raw, my_match)
+    model4.fit()
+    print( model4.prediction() )
     
     print("Based on our model:")
     model5 = dm1.DynamicTennisModel(df_raw, my_match)
