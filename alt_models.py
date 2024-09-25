@@ -236,13 +236,16 @@ class CumulativeUnfErrModel:
 
 ###################
 # Demo
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+
 if __name__=="__main__":
     import tennis_data
     import dynamic_model1 as dm1
-    
-    df_raw = tennis_data.load_2023()
-    matches = df_raw['match_id'].unique()
 
+    
     my_match = matches[1]
     stats = MatchStats(df_raw, my_match)
     
@@ -279,3 +282,91 @@ if __name__=="__main__":
     model6.fit()
     print( model6.prediction() )
     
+    df_raw = tennis_data.load_2023()
+    matches = df_raw['match_id'].unique()
+
+    # Initialize a dictionary to store counts for each model
+    model_names = {
+        "SetWinnerModel": SetWinnerModel,
+        "CumulativeSetWinnerModel": CumulativeSetWinnerModel,
+        "CumulativePointWinnerModel": CumulativePointWinnerModel,
+        "CumulativeGameWinnerModel": CumulativeGameWinnerModel,
+        "CumulativeUnfErrModel": CumulativeUnfErrModel,
+        "DynamicTennisModel": dm1.DynamicTennisModel,  # Include DynamicTennisModel
+    }
+    
+    # Initialize count arrays and reach counters
+    count_correct = {model_name: np.zeros(5) for model_name in model_names}
+    reach_count = {model_name: np.zeros(5) for model_name in model_names}
+    total_matches = 0
+
+    for match_id in matches:
+        stats = MatchStats(df_raw, match_id)
+        total_matches += 1
+        
+        for model_name, model_class in model_names.items():
+            model_instance = model_class(df_raw, match_id)
+            model_instance.fit()
+            predictions = model_instance.prediction()
+            
+            # Check if predictions are valid (not NaN)
+            valid_predictions = ~np.isnan(predictions)
+
+            # Compare predictions to actual match winner
+            correct_predictions = (predictions[valid_predictions] == stats.winner_id).astype(int)
+            
+            # Get the valid length
+            valid_length = np.sum(valid_predictions)
+            
+            # Update count_correct and reach_count for valid predictions
+            count_correct[model_name][:valid_length] += correct_predictions
+            reach_count[model_name][:valid_length] += 1  # Count valid predictions
+
+    # Calculate percentages for each model
+    percentage_correct = {}
+    for model_name, counts in count_correct.items():
+        percentages = np.zeros(5)
+        for i in range(5):
+            if reach_count[model_name][i] > 0:
+                if i >= 3:  # Use reach count for 4th set
+                    percentages[i] = (counts[i] / reach_count[model_name][i]) * 100
+                else:  # For the first three sets, use total matches
+                    percentages[i] = (counts[i] / total_matches) * 100
+        percentage_correct[model_name] = percentages
+
+    # Print the results
+    for model_name, percentages in percentage_correct.items():
+        print(f"{model_name}:")
+        for i in range(4):  # Only for sets 1-4
+            print(f"  Set {i + 1}: {percentages[i]:.2f}%")
+        print()  # Add a newline for better readability
+
+    # Create a DataFrame for plotting (only using the first 4 sets)
+    plot_data = pd.DataFrame({
+        'Model': list(percentage_correct.keys()),
+        'After Set 1': [percentage_correct[model][0] for model in percentage_correct],
+        'After Set 2': [percentage_correct[model][1] for model in percentage_correct],
+        'After Set 3': [percentage_correct[model][2] for model in percentage_correct],
+        'After Set 4': [percentage_correct[model][3] for model in percentage_correct],
+    })
+
+    # Melt the DataFrame to long format for Seaborn
+    plot_data_long = plot_data.melt(id_vars='Model', var_name='Set', value_name='Percentage')
+
+    # Plot using Seaborn
+    plt.figure(figsize=(10, 6))
+    sns.lineplot(data=plot_data_long, x='Set', y='Percentage', hue='Model', marker='o')
+    plt.title('Model Prediction Accuracy by Set')
+    plt.ylim(0, 100)
+    plt.xlabel('Set')
+    plt.ylabel('Percentage Correct')
+    plt.legend(title='Model')
+    plt.grid()
+    plt.show()
+
+## This also prints out a "prediction" for the end of set 5 (the end of the match). This will be
+## 100% accurate for any model relying on # of sets won as the winner of set 5 will also have won
+## the match.
+
+
+
