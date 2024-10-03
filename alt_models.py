@@ -47,7 +47,9 @@ class SetWinnerModel:
         to predict the winner of the match.
         '''
         pred = self.match['set_victor'][ self.match['set_victor']!=0 ].values
-        pred = pred
+        pred = pred.astype(float)
+        pred[1:] = pred[:-1]
+        pred[0] = np.nan
         return pred
 
 
@@ -79,6 +81,12 @@ class CumulativeSetWinnerModel:
         for i,p in enumerate(pred):
             if p==0:
                 pred[i] = pred[i-1]
+        
+        # revisit (uh oh)
+        pred = pred.astype(float)
+        pred[1:] = pred[:-1]
+        pred[0] = np.nan
+        
         return pred
 
 # TODO
@@ -284,6 +292,11 @@ if __name__=="__main__":
     model6.fit()
     print( model6.prediction() )
 
+    model_names = ["SetWinnerModel", "CumulativeSetWinnerModel", "CumulativePointWinnerModel", "CumulativeGameWinnerModel",
+        "CumulativeUnfErrModel", "DynamicTennisModel"]
+    
+    all_results = np.zeros( (5, len(model_names), len(matches)), dtype=float )
+    
     # Store all models
     all_models = {
         "SetWinnerModel": SetWinnerModel,
@@ -295,61 +308,76 @@ if __name__=="__main__":
     }
     
     # counters
-count_correct = {model: np.zeros(5) for model in all_models}
-reach_count = {model: np.zeros(5) for model in all_models}
-total_matches = 0
+    count_correct = {model: np.zeros(5) for model in all_models}
+    reach_count = {model: np.zeros(5) for model in all_models}
+    total_matches = 0
 
-# Iterate over each match
-for match_id in matches:
-    stats = MatchStats(df_raw, match_id)
-    total_matches += 1
+    
 
-    for model, model_class in all_models.items():
-        model_instance = model_class(df_raw, match_id) # model6=dm1.DynamicTennisModel(df_raw, my_match)
-        model_instance.fit() #model6.fit()
-        predictions = model_instance.prediction() #model6.prediction()
+    # Iterate over each match
+    for k,match_id in enumerate(matches):
+        
+        stats = MatchStats(df_raw, match_id)
+        total_matches += 1
 
-        # Only consider valid predictions (either 1 or 2) no Nan
-        valid_predictions = (predictions == 1) | (predictions == 2)
+        for j, (model, model_class) in enumerate(all_models.items()):
+            model_instance = model_class(df_raw, match_id) # model6=dm1.DynamicTennisModel(df_raw, my_match)
+            model_instance.fit() #model6.fit()
+            predictions = model_instance.prediction() #model6.prediction()
 
-        # Match predictions with the actual winner
-        correct_predictions = (predictions[valid_predictions] == stats.winner_id).astype(int)
-        #print(correct_predictions)
+            # Only consider valid predictions (either 1 or 2) no Nan
+            valid_predictions = (predictions == 1) | (predictions == 2)
 
-        # Error where one match length was 6? Cap at 5
-        for i in range(min(len(correct_predictions), 5)):  # Loop through max 5 sets
-            count_correct[model][i] += correct_predictions[i]  
-            reach_count[model][i] += 1
+            # Match predictions with the actual winner
+            correct_predictions = (predictions[valid_predictions] == stats.winner_id).astype(int)
+            #print(correct_predictions)
 
-accuracy = {model: count_correct[model] / reach_count[model] for model in all_models}
+            _blah = min(len(predictions), 5)
+            # TODO: why are we getting zeros in some places with this?
+            all_results[:_blah,j,k] = predictions[:_blah]
+            
+            #
+            for i in range(_blah):  # Loop through max 5 sets
+                if np.isnan(predictions[i]):
+                    all_results[i,j,k] = np.nan
+                else:
+                    all_results[i,j,k] = int(predictions[i] == stats.winner_id)
+            
+            # Error where one match length was 6? Cap at 5
+            for i in range(min(len(correct_predictions), 5)):  # Loop through max 5 sets
+                count_correct[model][i] += correct_predictions[i]
+                reach_count[model][i] += 1
+            
 
-# Display the accuracy for each set (from set 1 to set 5) for each model
-for model in all_models:
-    print(f"Accuracy for {model}: {accuracy[model]}")
+    accuracy = {model: count_correct[model] / reach_count[model] for model in all_models}
 
-# Convert accuracy to percentage for easier interpretation
-percentage_correct = {model: accuracy[model] * 100 for model in accuracy}
+    # Display the accuracy for each set (from set 1 to set 5) for each model
+    for model in all_models:
+        print(f"Accuracy for {model}: {accuracy[model]}")
 
-# Create DataFrame for plotting
-plot_data = pd.DataFrame({
-    'Model': list(percentage_correct.keys()),
-    'After Set 1': [percentage_correct[model_num][0] for model_num in percentage_correct],
-    'After Set 2': [percentage_correct[model_num][1] for model_num in percentage_correct],
-    'After Set 3': [percentage_correct[model_num][2] for model_num in percentage_correct],
-    'After Set 4': [percentage_correct[model_num][3] if len(percentage_correct[model_num]) > 3 else None for model_num in percentage_correct],
-    'After Set 5': [percentage_correct[model_num][4] if len(percentage_correct[model_num]) > 4 else None for model_num in percentage_correct]
-})
+    # Convert accuracy to percentage for easier interpretation
+    percentage_correct = {model: accuracy[model] * 100 for model in accuracy}
 
-# Convert the data so it can be plotted
-plot_data_long = plot_data.melt(id_vars='Model', var_name='Set', value_name='Percentage')
+    # Create DataFrame for plotting
+    plot_data = pd.DataFrame({
+        'Model': list(percentage_correct.keys()),
+        'After Set 1': [percentage_correct[model_num][0] for model_num in percentage_correct],
+        'After Set 2': [percentage_correct[model_num][1] for model_num in percentage_correct],
+        'After Set 3': [percentage_correct[model_num][2] for model_num in percentage_correct],
+        'After Set 4': [percentage_correct[model_num][3] if len(percentage_correct[model_num]) > 3 else None for model_num in percentage_correct],
+        'After Set 5': [percentage_correct[model_num][4] if len(percentage_correct[model_num]) > 4 else None for model_num in percentage_correct]
+    })
 
-# Plot
-plt.figure(figsize=(10, 6))
-sns.lineplot(data=plot_data_long, x='Set', y='Percentage', hue='Model', marker='o')
-plt.title('Model Prediction Accuracy by Set')
-plt.ylim(0, 100)
-plt.xlabel('Set')
-plt.ylabel('Percentage Correct')
-plt.legend(title='Model')
-plt.grid()
-plt.show()
+    # Convert the data so it can be plotted
+    plot_data_long = plot_data.melt(id_vars='Model', var_name='Set', value_name='Percentage')
+
+    # Plot
+    plt.figure(figsize=(10, 6))
+    sns.lineplot(data=plot_data_long, x='Set', y='Percentage', hue='Model', marker='o')
+    plt.title('Model Prediction Accuracy by Set')
+    plt.ylim(0, 100)
+    plt.xlabel('Set')
+    plt.ylabel('Percentage Correct')
+    plt.legend(title='Model')
+    plt.grid()
+    plt.show()
