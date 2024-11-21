@@ -508,6 +508,9 @@ class DynamicTennisModel:
             self.p2_momentum[self.set_change_points]
         ]
         
+        #import pdb
+        #pdb.set_trace()
+        
         # pad result_array with NaN in matches with fewer than five sets.
         pred = np.nan * np.zeros(5)
         
