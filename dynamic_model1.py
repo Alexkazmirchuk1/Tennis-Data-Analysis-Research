@@ -88,8 +88,12 @@ def get_serve_probability(match_data, player):
     player_is_server = (server_no == player)
     player_served_and_won = np.logical_and(player_is_server, point_victor == player)
 
-    num_serves_cumulative = np.cumsum(player_is_server)
-    won_point_cumulative = np.cumsum(player_served_and_won)
+    initial_serves = 50
+    initial_wins = 25
+
+# Compute cumulative values from the match data
+    num_serves_cumulative = initial_serves + np.cumsum(player_is_server)
+    won_point_cumulative = initial_wins + np.cumsum(player_served_and_won)
 
     # if player hasn't served, a calculation 0/0 would occur.
     # impute the probability below with 0/1 instead.
@@ -127,118 +131,126 @@ def prob_win_independent_game(p1, p2):
 # Momentum Modifier Functions
 
 # change probability if player wins set
-def modify_momentum(match_data, probability_array, player, r=1.3, q=0.4):
+def modify_momentum(match_data, probability_array, player, r=1.9, q=0.4):
     '''
-    When a player wins a set their "points" will increase by an exponential amount. 
-    When they lose a set their "points" will decrease but this change isn't as significant.
-    
+    Adjust the probability array to reflect momentum changes based on match outcomes.
+
     Inputs:
         match_data : pandas DataFrame for the match
-        probability_array : array of .....
-        
+        probability_array : array of probabilities to modify
+        player : player ID (1 or 2)
+        r : momentum boost factor (default=1.3)
+        q : penalty factor for losses (default=0.4)
+    
     Outputs:
-        probability_array : ...........
+        probability_array : modified probability array
     '''
     
     set_victor_array = match_data['set_victor'].values
     won_set_array = set_victor_array == player
-    lost_set_array = set_victor_array == (3-player)
+    lost_set_array = set_victor_array == (3 - player)
     
-    n = np.cumsum( won_set_array )
-    lost = np.cumsum( lost_set_array )
+    # Cumulative sets won and lost
+    n = np.cumsum(won_set_array)
+    lost = np.cumsum(lost_set_array)
+    
+    # Stabilize large values
     loss_factor = 1 + (q * lost)
     
+    # Adjust probabilities
+    prob_boost = ((np.exp(n * np.log(r)) - 1) / np.exp(n * np.log(r)))
+    probability_array = (prob_boost + (1 - prob_boost) * probability_array) ** loss_factor
     
-    probability_array = (((r**n)-1)/(r**n) + (1/(r**n))*probability_array) ** loss_factor
-
+    # Clip to ensure probabilities stay in [0, 1]
+    probability_array = np.clip(probability_array, 0, 1)
+    
     return probability_array
 
 def modify_momentum_err(match_data, momentum_array, player, s=0.0035):
     '''
-    Calculates the total number of unforced errors for a player and their opponent. 
-    For each additional unforced error a player commits, they will lose 0.0035 "points" (default).
-    For each additional unfrced error their opponent commits, they will gain 0.0035 "points".
-    
+    Adjusts a player's momentum based on the cumulative unforced errors 
+    made by them and their opponent.
+
+    For each additional unforced error:
+        - The player's momentum decreases by `s` (default 0.0035).
+        - The player's momentum increases by `s` for each error their opponent commits.
+
     Inputs:
         match_data : pandas DataFrame
-        momentum_array : array; ......
-        player : 
+            DataFrame containing match statistics, including unforced error columns.
+        momentum_array : numpy array
+            Array of current momentum values for the player.
+        player : int
+            Player index (1 or 2).
+        s : float, optional
+            Scaling factor for momentum adjustments, default is 0.0035.
+
     Outputs:
-        momentum_array : ............
+        momentum_array : numpy array
+            Updated momentum array after considering unforced errors.
     '''
-    
-    unf_err_array = match_data[f'p{player}_unf_err'].values
-    # unforced errors for the other player, regardless of their player index 
-    # (indices are either 1 or 2).
-    unf_err_array_2 = match_data[f'p{3-player}_unf_err'].values
-    
-    cumulative_unf_err_p1 = sum(unf_err_array[:len(momentum_array)] == 1)
-    cumulative_unf_err_p2 = sum(unf_err_array_2[:len(momentum_array)] == 1)
-    
-    # TODO: double-check sign (momentum should go up if opponent has 
-    # made more unforced errors?)
-    unf_err_advantage = cumulative_unf_err_p2 - cumulative_unf_err_p1
-    
-    # At any point in the match, based on who has made more unforced errors 
-    # to that point, accumulate a momentum. 
-    momentum_array = np.maximum(momentum_array + s*unf_err_advantage, 0)
-    
+
+    # Extract unforced error data for the player and opponent
+    player_errors = match_data[f'p{player}_unf_err'].values[:len(momentum_array)]
+    opponent_errors = match_data[f'p{3-player}_unf_err'].values[:len(momentum_array)]
+
+    # Calculate cumulative unforced errors for player and opponent
+    cumulative_player_errors = np.cumsum(player_errors == 1)
+    cumulative_opponent_errors = np.cumsum(opponent_errors == 1)
+
+    # Advantage based on the difference in unforced errors
+    error_advantage = cumulative_opponent_errors - cumulative_player_errors
+
+    # Update momentum, ensuring it stays non-negative
+    momentum_array = np.maximum(momentum_array + s * error_advantage, 0)
+
     return momentum_array
 
-def points_scored(match_data, points_array, player, uu= 1.005, cc=0.0001):
+def points_scored(match_data, points_array, player, uu=1.005, cc=0.0001):
     '''
-    When a player wins a set their "points" will increase by an exponential amount. 
-    When they lose a set their "points" will decrease but this change isn't as significant.
-    
+    Adjusts a player's "points" based on the cumulative points won and lost during a match.
+
+    When a player wins a point:
+        - Their points increase by a factor determined by the parameter `uu`.
+    When they lose a point:
+        - Their points decrease by a factor scaled by the parameter `cc`.
+
     Inputs:
-        match_data : pandas DataFrame for the match.
-        points_array : array, .....
-        player : integer index of player
-        uu : parameter (float); default 1.005
-        cc : parameter (float); default 0.0001 (or, 10**-4)
+        match_data : pandas DataFrame
+            DataFrame containing match statistics, including point outcomes.
+        points_array : numpy array
+            Array of current points for the player at each stage of the match.
+        player : int
+            Player index (1 or 2).
+        uu : float, optional
+            Growth factor for winning points, default is 1.005.
+        cc : float, optional
+            Decay factor for losing points, default is 0.0001.
+
+    Outputs:
+        points_array : numpy array
+            Updated points array after considering points won and lost.
     '''
-    # w = number of points won
-    ww = 0
-    mm = 0
-    lost_factor=1
     
+    # Calculate cumulative points won and lost
     points_victor_array = match_data['point_victor'].values
+    won_points = points_victor_array == player
+    lost_points = points_victor_array == (3 - player)
     
+    # Total points won by the player
+    ww = np.sum(won_points)
     
-    # Important:
-    # TODO: 
-    # Similar to elsewhere, the value of "ww" being used in these calculations 
-    # is the sum of point_victor values mathcing that player, for the entire 
-    # match; while values for "mm" is dynamically changing for each value 
-    # in points_array, during the second loop. Is this what is intended?
+    # Cumulative lost points for scaling
+    mm = np.cumsum(lost_points)
     
-    won_point = points_victor_array == player
-    lost_point = points_victor_array == 3 - player
+    # Calculate prefactor for scaling points won
+    prefactor = (((uu**ww) - 1) / (uu**ww) + (1 / (uu**ww)))  # A scalar value
     
-    #for index in range(len(points_array)):
-    #    points_victor_array = match_data['point_victor'].values
-    #    won_point = points_victor_array[index] == player
-    #
-    #    if (won_point):
-    #        ww += 1
+    # Update points array
+    points_array = prefactor * points_array - mm * cc
     
-    ww = sum(won_point)
-    
-    #for index in range(len(points_array)):
-    #    points_loss_array = match_data['point_victor'].values
-    #    lost_point = points_loss_array[index] == 3 - player
-    #
-    #    if (lost_point):
-    #        mm += 1
-    #        lost_factor = 1 + (mm * cc)
-    #
-    #        
-    #    points_array[index] = (((uu**ww)-1)/(uu**ww) + (1/(uu**ww)))*points_array[index]-mm*cc
-    
-    mm = np.cumsum(lost_point)
-    prefactor = (((uu**ww)-1)/(uu**ww) + (1/(uu**ww))) # currently a float; not an array (ww is fixed)
-    
-    points_array = prefactor*points_array-mm*cc
+    # Ensure points do not drop below zero
+    points_array = np.maximum(points_array, 0)
     
     return points_array
     
