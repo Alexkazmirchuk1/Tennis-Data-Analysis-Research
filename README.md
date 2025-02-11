@@ -5,3 +5,11 @@
 
 ---
 ![preview](ex.visual.png)
+
+#### Players are assumed to begin with an equal liklihood of victory, with such likelihood dynamically updating throughout the match as events occur. Factors such as server success, unforced errors, and ace points are measured to effect the swing of momentum in real time. 
+
+## Requirments
+* numpy
+* pandas
+* seaborn
+* matplotlib
