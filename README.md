@@ -15,3 +15,18 @@
 * pandas
 * seaborn
 * matplotlib
+
+## Citations
+Wilkens, Sascha. "Sports prediction and betting models in the machine learning age: The case of tennis." Journal of Sports Analytics 7.2 (2021): 99-117.
+
+Carrari, Andrea, Marco Ferrante, and Giovanni Fonseca. "A new Markovian model for tennis matches." Electronic Journal of Applied Statistical Analysis 10.3 (2017): 693-711.
+
+Yue, Jack C., Elizabeth P. Chou, Ming-Hui Hsieh, and Li-Chen Hsiao. "A study of forecasting tennis matches via the Glicko model." PLOS ONE 17.4 (2022): e0266838.
+
+ATP Tour. "Roger Federer: Player Stats: ATP Tour: Tennis." 2024. Accessed October 9, 2024. https://www.atptour.com/en/players/roger-federer/f324/player-stats?year=all&surface=all.
+
+Sackmann, Jeff. "Tennis Slam Point-by-Point Data." 2024. Accessed November 17, 2024. https://github.com/JeffSackmann/tennis_slam_pointbypoint.
+
+Clarke, S. R., and D. Dyte. "Using official ratings to simulate major tennis tournaments." International Transactions in Operational Research 7.6 (2000): 585-594. https://doi.org/10.1111/j.1475-3995.2000.tb00218.x.
+
+Independent. "Carlos Alcaraz wins Wimbledon 2023: Spanish star claims his first Wimbledon title." The Independent, 2023. https://www.independent.co.uk/sport/tennis/wimbledon-final-2023-winner-trophy-carlos-alcaraz-b2376360.html. Accessed December 5, 2024.
