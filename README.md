@@ -1,7 +1,7 @@
 # Dynamic Tennis Prediction Model
 
 ## Overview
-#### This project simulates a tennis match from start to end and assess at which points we can confidently forecast the result. We use data from the 2021 and 2023 Wimbledon Tournaments to train and evaluate our model.
+#### This project models tennis matches from start to end, point by point, and assess at the end of each set we can confidently forecast the end result. We use data from the 2021 and 2023 Wimbledon Tournaments to train and evaluate our model.
 
 ---
 ![preview](visual.png)
@@ -10,7 +10,11 @@
 
 #### In the 2023 Wimbledon Final between Alcaraz and Djokovic we witness a hard fought bout capped off with an impressive comeback from Alcaraz. Djokovic looked to take an early and dominant lead in this match, but Alcaraz's strong play propelled him into contention by the third set. After that it was a back and forth contest until the final point was played. We analyze which events during this match had the greatest effect on the eventual outcome, and how we can generalize this approach to accurately forecast any given tennis match.
 
-## Requirments
+## Getting Started
+To produce the figure in this readme, run the script `example_momentum_vis.py` after cloning the repository.
+* _major_file_ contains (basic description) (TODO) 
+
+## Requirements
 * numpy
 * pandas
 * seaborn
