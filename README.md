@@ -12,7 +12,7 @@
 
 ## Getting Started
 To produce the figure in this readme, run the script `example_momentum_vis.py` after cloning the repository.
-* _major_file_ contains (basic description) (TODO) 
+Furthurmore, `dynamic_model1.py` contains the code nexxessary to train the predictive algorithm, while `alt.models.py` contains more naive models such as the current leader in points won.
 
 ## Requirements
 * numpy
